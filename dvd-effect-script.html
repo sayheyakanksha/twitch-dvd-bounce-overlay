@@ -14,7 +14,18 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #000;
+        background: black;
+      }
+
+      #bgPattern {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.08; /* adjust strength */
+        background-image:
+          linear-gradient(90deg, #888 1px, transparent 1px),
+          linear-gradient(#888 1px, transparent 1px);
+        background-size: 8px 8px; /* pixel size */
       }
 
       #logo {
@@ -32,6 +43,7 @@
     </style>
   </head>
   <body>
+    <div id="bgPattern"></div>
     <!-- avatar -->
     <img id="logo" src="avatar.png" alt="logo" />
 
