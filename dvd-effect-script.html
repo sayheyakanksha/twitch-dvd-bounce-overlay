@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1"
+    />
+    <title>DVD Bounce Overlay</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #logo {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 180px; /* size here */
+        height: auto;
+        user-select: none;
+        -webkit-user-drag: none;
+        will-change: transform;
+        transform: translate3d(0, 0, 0);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- avatar -->
+    <img id="logo" src="avatar.png" alt="logo" />
+
+    <!-- corner hit sound -->
+    <audio id="cornerSfx" src="corner.wav" preload="auto"></audio>
+
+    <script>
+      (() => {
+        const logo = document.getElementById("logo");
+        const sfx = document.getElementById("cornerSfx");
+
+        // ====== CONFIG ======
+        const SPEED_PX_PER_SEC = 110; // lower = slower (try 60–140)
+        const CORNER_SFX_COOLDOWN_MS = 350; // prevent double-triggers
+        // ====================
+
+        let boundsW = 0,
+          boundsH = 0;
+        let logoW = 0,
+          logoH = 0;
+
+        // Position (top-left of image)
+        let x = 0,
+          y = 0;
+
+        // Unit direction vector (normalized)
+        // 45° is classic DVD vibe; you can tweak the angle.
+        const angle = Math.PI / 4;
+        let vx = Math.cos(angle);
+        let vy = Math.sin(angle);
+
+        // Timing
+        let lastT = 0;
+        let lastCornerSoundAt = -Infinity;
+
+        function measure() {
+          boundsW = document.documentElement.clientWidth;
+          boundsH = document.documentElement.clientHeight;
+
+          // Use natural size after load; getBoundingClientRect is stable for transforms
+          const r = logo.getBoundingClientRect();
+          logoW = r.width;
+          logoH = r.height;
+
+          // Clamp position into new bounds after resize
+          x = clamp(x, 0, Math.max(0, boundsW - logoW));
+          y = clamp(y, 0, Math.max(0, boundsH - logoH));
+        }
+
+        function clamp(v, min, max) {
+          return v < min ? min : v > max ? max : v;
+        }
+
+        function setPos() {
+          // translate3d keeps it on the GPU and avoids layout thrash
+          logo.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        }
+
+        function atLeft() {
+          return x <= 0;
+        }
+        function atRight() {
+          return x >= boundsW - logoW;
+        }
+        function atTop() {
+          return y <= 0;
+        }
+        function atBottom() {
+          return y >= boundsH - logoH;
+        }
+
+        function isCorner() {
+          const hitX = atLeft() || atRight();
+          const hitY = atTop() || atBottom();
+          return hitX && hitY;
+        }
+
+        function playCornerSound(nowMs) {
+          if (nowMs - lastCornerSoundAt < CORNER_SFX_COOLDOWN_MS) return;
+          lastCornerSoundAt = nowMs;
+
+          // Restart sound cleanly
+          try {
+            sfx.currentTime = 0;
+            // In OBS Browser Source, autoplay is generally allowed,
+            // but if you test in Chrome you may need to click once.
+            sfx.play().catch(() => {});
+          } catch (_) {}
+        }
+
+        function tick(t) {
+          if (!lastT) lastT = t;
+          const dt = (t - lastT) / 1000; // seconds
+          lastT = t;
+
+          // Step
+          x += vx * SPEED_PX_PER_SEC * dt;
+          y += vy * SPEED_PX_PER_SEC * dt;
+
+          // Collide with walls (clamp + reflect)
+          let hitX = false,
+            hitY = false;
+
+          const maxX = Math.max(0, boundsW - logoW);
+          const maxY = Math.max(0, boundsH - logoH);
+
+          if (x <= 0) {
+            x = 0;
+            vx = -vx;
+            hitX = true;
+          } else if (x >= maxX) {
+            x = maxX;
+            vx = -vx;
+            hitX = true;
+          }
+
+          if (y <= 0) {
+            y = 0;
+            vy = -vy;
+            hitY = true;
+          } else if (y >= maxY) {
+            y = maxY;
+            vy = -vy;
+            hitY = true;
+          }
+
+          // Corner detection (only if we hit both axes in same frame, or ended clamped at a corner)
+          if ((hitX && hitY) || (isCorner() && (hitX || hitY))) {
+            playCornerSound(t);
+          }
+
+          setPos();
+          requestAnimationFrame(tick);
+        }
+
+        function init() {
+          measure();
+
+          // Randomize start position for replayability (still clamped)
+          x = Math.random() * Math.max(0, boundsW - logoW);
+          y = Math.random() * Math.max(0, boundsH - logoH);
+          setPos();
+
+          requestAnimationFrame(tick);
+        }
+
+        // Start only after the image has real dimensions
+        if (logo.complete) init();
+        else logo.addEventListener("load", init, { once: true });
+
+        // Handle resize (OBS size changes / different canvas)
+        window.addEventListener("resize", () => {
+          measure();
+          setPos();
+        });
+      })();
+    </script>
+  </body>
+</html>
