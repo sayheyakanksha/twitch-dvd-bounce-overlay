@@ -1,4 +1,4 @@
-## DVD Bounce Twitch Overlay
+## Twitch DVD Bounce Style Overlay
 
 A tiny, chaotic little overlay that recreates the classic DVD logo bounce, but for Twitch.
 
@@ -22,7 +22,7 @@ When it does, it plays a sound so chat can celebrate like it's 2006.
 ### How to Use
 
 - Put your image file in the folder
-- Replace avatar.png in dvd.html
+- Replace avatar.png in index.html
 - Add corner.mp3 (or your own sound)
 - In OBS → Add Browser Source
 - Check Local File
